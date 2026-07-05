@@ -36,6 +36,7 @@ function SignupPage() {
     const updatedUsers = [...storedUsers, newUser];
     localStorage.setItem('task-tracker-users', JSON.stringify(updatedUsers));
     localStorage.setItem('task-tracker-user', JSON.stringify(newUser));
+    window.dispatchEvent(new Event('auth-changed'));
     setSuccess('Account created successfully. Redirecting...');
     setTimeout(() => navigate('/'), 500);
   };

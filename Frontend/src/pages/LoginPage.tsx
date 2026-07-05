@@ -27,6 +27,7 @@ function LoginPage() {
     }
 
     localStorage.setItem('task-tracker-user', JSON.stringify(user));
+    window.dispatchEvent(new Event('auth-changed'));
     setSuccess('Login successful. Redirecting...');
     setTimeout(() => navigate('/'), 500);
   };

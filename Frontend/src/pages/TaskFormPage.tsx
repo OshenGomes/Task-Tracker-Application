@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-
-type TaskItem = {
-  id: number;
-  title: string;
-  description: string;
-  completed: boolean;
-  userId: number;
-};
+import { createTask, getTaskById, updateTask } from '../api/taskApi';
 
 function TaskFormPage() {
   const { id } = useParams();
@@ -16,6 +9,7 @@ function TaskFormPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [completed, setCompleted] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -26,16 +20,16 @@ function TaskFormPage() {
     }
 
     const user = JSON.parse(storedUser);
-    const allTasks = JSON.parse(localStorage.getItem('task-tracker-tasks') || '[]') as TaskItem[];
-    const foundTask = allTasks.find((item) => item.id === Number(id) && item.userId === user.id);
-    if (foundTask) {
-      setTitle(foundTask.title);
-      setDescription(foundTask.description);
-      setCompleted(foundTask.completed);
-    }
+    void getTaskById(Number(id), user).then((foundTask) => {
+      if (foundTask) {
+        setTitle(foundTask.title);
+        setDescription(foundTask.description);
+        setCompleted(foundTask.completed);
+      }
+    });
   }, [id, navigate]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const storedUser = localStorage.getItem('task-tracker-user');
     if (!storedUser) {
       navigate('/login');
@@ -43,24 +37,25 @@ function TaskFormPage() {
     }
 
     const user = JSON.parse(storedUser);
-    const allTasks = JSON.parse(localStorage.getItem('task-tracker-tasks') || '[]') as TaskItem[];
 
-    if (isEdit) {
-      const updatedTasks = allTasks.map((task) => (task.id === Number(id) && task.userId === user.id ? { ...task, title, description, completed } : task));
-      localStorage.setItem('task-tracker-tasks', JSON.stringify(updatedTasks));
-    } else {
-      const newTask: TaskItem = {
-        id: Date.now(),
-        title,
-        description,
-        completed: false,
-        userId: user.id
-      };
-      localStorage.setItem('task-tracker-tasks', JSON.stringify([...allTasks, newTask]));
+    try {
+      if (isEdit) {
+        const existing = await getTaskById(Number(id), user);
+        if (!existing) {
+          setError('Task not found.');
+          return;
+        }
+
+        await updateTask({ ...existing, title, description, completed }, user);
+      } else {
+        await createTask({ title, description, completed }, user);
+      }
+
+      window.dispatchEvent(new Event('task-tracker-updated'));
+      navigate('/');
+    } catch {
+      setError('Unable to save task on the server.');
     }
-
-    window.dispatchEvent(new Event('task-tracker-updated'));
-    navigate('/');
   };
 
   return (
@@ -73,6 +68,7 @@ function TaskFormPage() {
           </div>
           <Link to="/" className="link-btn">Back</Link>
         </div>
+        {error ? <div className="error">{error}</div> : null}
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" />
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={5} />
         {isEdit ? (

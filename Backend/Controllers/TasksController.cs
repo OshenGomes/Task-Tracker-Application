@@ -25,6 +25,7 @@ public class TasksController : ControllerBase
         [FromQuery] string? status,
         [FromQuery] int? owner)
     {
+        var (role, currentUserId, isAdmin) = GetCurrentUserContext();
         var effectivePageNumber = pageNumber ?? page ?? 1;
         var effectivePageSize = size ?? pageSize ?? 10;
 
@@ -34,6 +35,16 @@ public class TasksController : ControllerBase
         }
 
         var query = _taskRepository.GetAll().AsQueryable();
+
+        if (!isAdmin)
+        {
+            if (!currentUserId.HasValue)
+            {
+                return Forbid();
+            }
+
+            query = query.Where(t => t.AssignedToUserId == currentUserId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(status))
         {
@@ -50,6 +61,14 @@ public class TasksController : ControllerBase
             if (owner.Value < 1)
             {
                 return BadRequest("owner must be a positive user id.");
+            }
+
+            if (!isAdmin)
+            {
+                if (!currentUserId.HasValue || owner.Value != currentUserId.Value)
+                {
+                    return Forbid();
+                }
             }
 
             query = query.Where(t => t.AssignedToUserId == owner.Value);
@@ -76,8 +95,19 @@ public class TasksController : ControllerBase
     [HttpGet("{id:int}")]
     public ActionResult<TaskDto> GetById(int id)
     {
+        var (role, currentUserId, isAdmin) = GetCurrentUserContext();
         var task = _taskRepository.GetById(id);
-        return task is null ? NotFound() : Ok(MapToDto(task));
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        if (!isAdmin && (!currentUserId.HasValue || task.AssignedToUserId != currentUserId.Value))
+        {
+            return Forbid();
+        }
+
+        return Ok(MapToDto(task));
     }
 
     [HttpPost]
@@ -88,6 +118,20 @@ public class TasksController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
+        var (role, currentUserId, isAdmin) = GetCurrentUserContext();
+        if (!isAdmin)
+        {
+            if (!currentUserId.HasValue)
+            {
+                return Forbid();
+            }
+
+            if (request.AssignedToUserId.HasValue && request.AssignedToUserId != currentUserId.Value)
+            {
+                return Forbid();
+            }
+        }
+
         var task = new TaskItem
         {
             Title = request.Title,
@@ -95,7 +139,7 @@ public class TasksController : ControllerBase
             Status = Enum.TryParse<Domain.Entities.TaskStatus>(request.Status, true, out var status) ? status : Domain.Entities.TaskStatus.ToDo,
             Priority = Enum.TryParse<Domain.Entities.TaskPriority>(request.Priority, true, out var priority) ? priority : Domain.Entities.TaskPriority.Medium,
             DueDate = request.DueDate,
-            AssignedToUserId = request.AssignedToUserId,
+            AssignedToUserId = isAdmin ? request.AssignedToUserId : currentUserId,
             Tags = request.Tags,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -113,18 +157,31 @@ public class TasksController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
+        var (role, currentUserId, isAdmin) = GetCurrentUserContext();
         var task = _taskRepository.GetById(id);
         if (task is null)
         {
             return NotFound();
         }
 
+        if (!isAdmin && (!currentUserId.HasValue || task.AssignedToUserId != currentUserId.Value))
+        {
+            return Forbid();
+        }
+
+        if (!isAdmin && request.AssignedToUserId.HasValue && request.AssignedToUserId != currentUserId.Value)
+        {
+            return Forbid();
+        }
+
+        var assignedUserId = isAdmin ? request.AssignedToUserId : currentUserId;
+
         task.Title = request.Title;
         task.Description = request.Description;
         task.Status = Enum.TryParse<Domain.Entities.TaskStatus>(request.Status, true, out var status) ? status : Domain.Entities.TaskStatus.ToDo;
         task.Priority = Enum.TryParse<Domain.Entities.TaskPriority>(request.Priority, true, out var priority) ? priority : Domain.Entities.TaskPriority.Medium;
         task.DueDate = request.DueDate;
-        task.AssignedToUserId = request.AssignedToUserId;
+        task.AssignedToUserId = assignedUserId;
         task.Tags = request.Tags;
         task.UpdatedAt = DateTime.UtcNow;
 
@@ -135,14 +192,28 @@ public class TasksController : ControllerBase
     [HttpDelete("{id:int}")]
     public IActionResult Delete(int id)
     {
+        var (role, currentUserId, isAdmin) = GetCurrentUserContext();
         var task = _taskRepository.GetById(id);
         if (task is null)
         {
             return NotFound();
         }
 
+        if (!isAdmin && (!currentUserId.HasValue || task.AssignedToUserId != currentUserId.Value))
+        {
+            return Forbid();
+        }
+
         _taskRepository.Delete(task);
         return NoContent();
+    }
+
+    private (string? Role, int? UserId, bool IsAdmin) GetCurrentUserContext()
+    {
+        var role = Request.Headers["X-User-Role"].ToString();
+        var userIdHeader = Request.Headers["X-User-Id"].ToString();
+        int? userId = int.TryParse(userIdHeader, out var parsedUserId) ? parsedUserId : null;
+        return (role, userId, string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase));
     }
 
     private static TaskDto MapToDto(TaskItem task) => new()

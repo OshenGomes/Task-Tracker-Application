@@ -1,20 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-
-type TaskItem = {
-  id: number;
-  title: string;
-  description: string;
-  completed: boolean;
-  userId: number;
-};
+import { deleteTask, getTaskById, type TaskItem } from '../api/taskApi';
 
 function TaskDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [task, setTask] = useState<TaskItem | null>(null);
+  const [error, setError] = useState('');
 
-  const loadTask = () => {
+  const loadTask = async () => {
     const storedUser = localStorage.getItem('task-tracker-user');
     if (!storedUser) {
       navigate('/login');
@@ -22,9 +16,9 @@ function TaskDetailsPage() {
     }
 
     const user = JSON.parse(storedUser);
-    const allTasks = JSON.parse(localStorage.getItem('task-tracker-tasks') || '[]') as TaskItem[];
-    const foundTask = allTasks.find((item) => item.id === Number(id) && item.userId === user.id);
-    setTask(foundTask ?? null);
+    const foundTask = await getTaskById(Number(id), user);
+    setTask(foundTask);
+    setError('');
   };
 
   useEffect(() => {
@@ -32,12 +26,12 @@ function TaskDetailsPage() {
 
     const handleStorageUpdate = (event: StorageEvent) => {
       if (event.key === 'task-tracker-tasks' || event.key === 'task-tracker-user') {
-        loadTask();
+        void loadTask();
       }
     };
 
     const handleTaskUpdate = () => {
-      loadTask();
+      void loadTask();
     };
 
     window.addEventListener('storage', handleStorageUpdate);
@@ -49,12 +43,20 @@ function TaskDetailsPage() {
     };
   }, [id, navigate]);
 
-  const deleteTask = () => {
-    const allTasks = JSON.parse(localStorage.getItem('task-tracker-tasks') || '[]') as TaskItem[];
-    const updatedTasks = allTasks.filter((item) => item.id !== Number(id));
-    localStorage.setItem('task-tracker-tasks', JSON.stringify(updatedTasks));
-    window.dispatchEvent(new Event('task-tracker-updated'));
-    navigate('/');
+  const handleDeleteTask = async () => {
+    const storedUser = localStorage.getItem('task-tracker-user');
+    if (!storedUser) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      await deleteTask(Number(id), JSON.parse(storedUser));
+      window.dispatchEvent(new Event('task-tracker-updated'));
+      navigate('/');
+    } catch {
+      setError('Unable to delete this task from the server.');
+    }
   };
 
   const statusLabel = useMemo(() => (task?.completed ? 'Completed' : 'Pending'), [task]);
@@ -73,9 +75,10 @@ function TaskDetailsPage() {
           </div>
           <div className="inline-actions">
             <Link to={`/task/${task.id}/edit`} className="link-btn">Edit</Link>
-            <button onClick={deleteTask}>Delete</button>
+            <button onClick={() => void handleDeleteTask()}>Delete</button>
           </div>
         </div>
+        {error ? <div className="error">{error}</div> : null}
         <p>{task.description || 'No description provided.'}</p>
         <Link to="/">Back to tasks</Link>
       </div>

@@ -47,7 +47,7 @@ public class UsersController : ControllerBase
         {
             Name = request.Name,
             Email = request.Email,
-            Role = request.Role,
+            Role = NormalizeRole(request.Role),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -71,7 +71,7 @@ public class UsersController : ControllerBase
 
         user.Name = request.Name;
         user.Email = request.Email;
-        user.Role = request.Role;
+        user.Role = NormalizeRole(request.Role);
         _userRepository.Update(user);
         return NoContent();
     }
@@ -94,7 +94,9 @@ public class UsersController : ControllerBase
         Id = user.Id,
         Name = user.Name,
         Email = user.Email,
-        Role = user.Role,
+        Role = NormalizeRole(user.Role),
         CreatedAt = user.CreatedAt
     };
+
+    private static string NormalizeRole(string? role) => string.IsNullOrWhiteSpace(role) ? "user" : role.Trim().ToLowerInvariant();
 }

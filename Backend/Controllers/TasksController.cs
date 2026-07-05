@@ -17,10 +17,60 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<IEnumerable<TaskDto>> GetAll()
+    public ActionResult<object> GetAll(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        [FromQuery] int? pageNumber,
+        [FromQuery] int? size,
+        [FromQuery] string? status,
+        [FromQuery] int? owner)
     {
-        var tasks = _taskRepository.GetAll().Select(MapToDto);
-        return Ok(tasks);
+        var effectivePageNumber = pageNumber ?? page ?? 1;
+        var effectivePageSize = size ?? pageSize ?? 10;
+
+        if (effectivePageNumber < 1 || effectivePageSize < 1)
+        {
+            return BadRequest("pageNumber/page and pageSize/size must be greater than 0.");
+        }
+
+        var query = _taskRepository.GetAll().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<Domain.Entities.TaskStatus>(status, true, out var parsedStatus))
+            {
+                return BadRequest("status must be one of: ToDo, InProgress, Completed.");
+            }
+
+            query = query.Where(t => t.Status == parsedStatus);
+        }
+
+        if (owner.HasValue)
+        {
+            if (owner.Value < 1)
+            {
+                return BadRequest("owner must be a positive user id.");
+            }
+
+            query = query.Where(t => t.AssignedToUserId == owner.Value);
+        }
+
+        var totalCount = query.Count();
+        var tasks = query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip((effectivePageNumber - 1) * effectivePageSize)
+            .Take(effectivePageSize)
+            .Select(MapToDto)
+            .ToList();
+
+        return Ok(new
+        {
+            items = tasks,
+            pageNumber = effectivePageNumber,
+            pageSize = effectivePageSize,
+            totalCount,
+            totalPages = (int)Math.Ceiling(totalCount / (double)effectivePageSize)
+        });
     }
 
     [HttpGet("{id:int}")]

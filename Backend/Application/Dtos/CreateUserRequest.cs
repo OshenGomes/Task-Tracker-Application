@@ -12,6 +12,7 @@ public class CreateUserRequest
     [EmailAddress(ErrorMessage = "A valid email address is required")]
     public string Email { get; set; } = string.Empty;
 
-    [StringLength(50, ErrorMessage = "Role must not exceed 50 characters")]
-    public string Role { get; set; } = "Member";
+    [Required(ErrorMessage = "Role is required")]
+    [RegularExpression("^(user|admin)$", ErrorMessage = "Role must be either 'user' or 'admin'")]
+    public string Role { get; set; } = "user";
 }

@@ -59,6 +59,7 @@ function TaskFormPage() {
       localStorage.setItem('task-tracker-tasks', JSON.stringify([...allTasks, newTask]));
     }
 
+    window.dispatchEvent(new Event('task-tracker-updated'));
     navigate('/');
   };
 

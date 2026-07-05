@@ -63,6 +63,11 @@ button {
 .task-form input { margin-bottom: 0; }
 .task-actions-row { margin-bottom: 16px; }
 .link-btn { display: inline-block; padding: 8px 12px; background: #eef2ff; color: #4338ca; border-radius: 10px; }
+.filter-bar { display: flex; gap: 10px; margin-bottom: 12px; }
+.filter-bar select, .filter-bar input { margin-bottom: 0; }
+.pagination-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; color: #475569; }
+.pagination-btn { width: auto; padding: 8px 12px; }
+.pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .task-list { display: flex; flex-direction: column; gap: 10px; }
 .task-item { border: 1px solid #e5e7eb; padding: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .task-item.done { background: #ecfdf5; }

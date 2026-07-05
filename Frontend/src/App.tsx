@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -7,11 +8,33 @@ import TaskFormPage from './pages/TaskFormPage';
 
 const getStoredUser = () => {
   const user = localStorage.getItem('task-tracker-user');
-  return user ? JSON.parse(user) : null;
+  try {
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
 };
 
 function App() {
-  const user = getStoredUser();
+  const [user, setUser] = useState(getStoredUser);
+
+  useEffect(() => {
+    const syncUser = () => setUser(getStoredUser());
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'task-tracker-user') {
+        syncUser();
+      }
+    };
+
+    window.addEventListener('auth-changed', syncUser);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('auth-changed', syncUser);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   return (
     <Routes>

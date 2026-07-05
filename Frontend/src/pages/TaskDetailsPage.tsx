@@ -14,7 +14,7 @@ function TaskDetailsPage() {
   const navigate = useNavigate();
   const [task, setTask] = useState<TaskItem | null>(null);
 
-  useEffect(() => {
+  const loadTask = () => {
     const storedUser = localStorage.getItem('task-tracker-user');
     if (!storedUser) {
       navigate('/login');
@@ -25,12 +25,35 @@ function TaskDetailsPage() {
     const allTasks = JSON.parse(localStorage.getItem('task-tracker-tasks') || '[]') as TaskItem[];
     const foundTask = allTasks.find((item) => item.id === Number(id) && item.userId === user.id);
     setTask(foundTask ?? null);
+  };
+
+  useEffect(() => {
+    loadTask();
+
+    const handleStorageUpdate = (event: StorageEvent) => {
+      if (event.key === 'task-tracker-tasks' || event.key === 'task-tracker-user') {
+        loadTask();
+      }
+    };
+
+    const handleTaskUpdate = () => {
+      loadTask();
+    };
+
+    window.addEventListener('storage', handleStorageUpdate);
+    window.addEventListener('task-tracker-updated', handleTaskUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('task-tracker-updated', handleTaskUpdate);
+    };
   }, [id, navigate]);
 
   const deleteTask = () => {
     const allTasks = JSON.parse(localStorage.getItem('task-tracker-tasks') || '[]') as TaskItem[];
     const updatedTasks = allTasks.filter((item) => item.id !== Number(id));
     localStorage.setItem('task-tracker-tasks', JSON.stringify(updatedTasks));
+    window.dispatchEvent(new Event('task-tracker-updated'));
     navigate('/');
   };
 

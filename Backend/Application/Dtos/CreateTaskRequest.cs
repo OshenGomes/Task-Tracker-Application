@@ -13,6 +13,8 @@ public class CreateTaskRequest
 
     public string Status { get; set; } = "ToDo";
     public string Priority { get; set; } = "Medium";
+
+    [Required(ErrorMessage = "Due date is required")]
     public DateTime? DueDate { get; set; }
     public int? AssignedToUserId { get; set; }
     public string? Tags { get; set; }

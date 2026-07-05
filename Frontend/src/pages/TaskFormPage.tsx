@@ -9,6 +9,7 @@ function TaskFormPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [completed, setCompleted] = useState(false);
+  const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -25,6 +26,7 @@ function TaskFormPage() {
         setTitle(foundTask.title);
         setDescription(foundTask.description);
         setCompleted(foundTask.completed);
+        setDueDate(foundTask.dueDate ? foundTask.dueDate.split('T')[0] : '');
       }
     });
   }, [id, navigate]);
@@ -38,6 +40,11 @@ function TaskFormPage() {
 
     const user = JSON.parse(storedUser);
 
+    if (!dueDate.trim()) {
+      setError('Due date is required.');
+      return;
+    }
+
     try {
       if (isEdit) {
         const existing = await getTaskById(Number(id), user);
@@ -46,9 +53,9 @@ function TaskFormPage() {
           return;
         }
 
-        await updateTask({ ...existing, title, description, completed }, user);
+        await updateTask({ ...existing, title, description, completed, dueDate }, user);
       } else {
-        await createTask({ title, description, completed }, user);
+        await createTask({ title, description, completed, dueDate }, user);
       }
 
       window.dispatchEvent(new Event('task-tracker-updated'));
@@ -71,6 +78,10 @@ function TaskFormPage() {
         {error ? <div className="error">{error}</div> : null}
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" />
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={5} />
+        <label>
+          Due Date
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </label>
         {isEdit ? (
           <label className="checkbox-row">
             <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} />

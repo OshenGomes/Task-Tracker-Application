@@ -11,6 +11,7 @@ export type TaskItem = {
   title: string;
   description: string;
   completed: boolean;
+  dueDate: string | null;
   userId: number;
 };
 
@@ -43,6 +44,7 @@ const toFrontendTask = (task: BackendTaskDto): TaskItem => ({
   title: task.title,
   description: task.description ?? '',
   completed: (task.status ?? '').toLowerCase() === 'completed',
+  dueDate: task.dueDate ?? null,
   userId: task.assignedToUserId ?? 0
 });
 
@@ -60,7 +62,7 @@ export async function listTasks(user: User | null): Promise<TaskItem[]> {
   return items.map(toFrontendTask);
 }
 
-export async function createTask(task: { title: string; description: string; completed: boolean }, user: User | null): Promise<TaskItem> {
+export async function createTask(task: { title: string; description: string; completed: boolean; dueDate: string }, user: User | null): Promise<TaskItem> {
   const response = await fetch(`${API_BASE_URL}/api/tasks`, {
     method: 'POST',
     headers: getHeaders(user),
@@ -69,6 +71,7 @@ export async function createTask(task: { title: string; description: string; com
       description: task.description,
       status: task.completed ? 'Completed' : 'ToDo',
       priority: 'Medium',
+      dueDate: task.dueDate,
       assignedToUserId: user?.id
     })
   });
@@ -90,6 +93,7 @@ export async function updateTask(task: TaskItem, user: User | null): Promise<Tas
       description: task.description,
       status: task.completed ? 'Completed' : 'ToDo',
       priority: 'Medium',
+      dueDate: task.dueDate,
       assignedToUserId: user?.id
     })
   });

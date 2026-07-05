@@ -44,18 +44,35 @@ function SignupPage() {
         return;
       }
 
-      const createdUser = await response.json() as { id: number; name: string; email: string; role: string };
+      await response.json();
+
+      const loginResponse = await fetch(`${API_BASE_URL}/api/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password
+        })
+      });
+
+      if (!loginResponse.ok) {
+        const message = await loginResponse.text();
+        setError(message || 'Account created, but login failed. Please sign in.');
+        return;
+      }
+
+      const backendUser = await loginResponse.json() as { id: number; name: string; email: string; role: string; token: string };
       const authenticatedUser = {
-        id: createdUser.id,
-        name: createdUser.name,
-        email: createdUser.email,
-        password: form.password,
-        role: createdUser.role
+        id: backendUser.id,
+        name: backendUser.name,
+        email: backendUser.email,
+        role: backendUser.role,
+        token: backendUser.token
       };
 
       localStorage.setItem('task-tracker-user', JSON.stringify(authenticatedUser));
       window.dispatchEvent(new Event('auth-changed'));
-      setSuccess('Account created successfully. Redirecting...');
+      setSuccess('Account created and logged in successfully. Redirecting...');
       setTimeout(() => navigate('/'), 500);
     } catch {
       setError('Unable to create account right now.');

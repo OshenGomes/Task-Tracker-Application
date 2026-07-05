@@ -1,3 +1,6 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Task_Tracker_Application.Application.Dtos;
 using Task_Tracker_Application.Application.Interfaces;
@@ -6,6 +9,7 @@ using Task_Tracker_Application.Domain.Entities;
 namespace Task_Tracker_Application.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class TasksController : ControllerBase
 {
@@ -210,9 +214,10 @@ public class TasksController : ControllerBase
 
     private (string? Role, int? UserId, bool IsAdmin) GetCurrentUserContext()
     {
-        var role = Request.Headers["X-User-Role"].ToString();
-        var userIdHeader = Request.Headers["X-User-Id"].ToString();
-        int? userId = int.TryParse(userIdHeader, out var parsedUserId) ? parsedUserId : null;
+        var user = HttpContext.User;
+        var role = user.FindFirst(ClaimTypes.Role)?.Value;
+        var userIdClaim = user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        int? userId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
         return (role, userId, string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase));
     }
 

@@ -1,9 +1,10 @@
-type User = {
+export type User = {
   id: number;
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role?: string;
+  token?: string;
 };
 
 export type TaskItem = {
@@ -32,9 +33,8 @@ const API_BASE_URL = 'http://localhost:5074';
 
 const getHeaders = (user: User | null) => {
   const headers = new Headers({ 'Content-Type': 'application/json' });
-  if (user) {
-    headers.set('X-User-Role', user.role ?? 'user');
-    headers.set('X-User-Id', String(user.id));
+  if (user?.token) {
+    headers.set('Authorization', `Bearer ${user.token}`);
   }
   return headers;
 };

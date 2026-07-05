@@ -1,6 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Task_Tracker_Application.Application.Dtos;
 using Task_Tracker_Application.Application.Interfaces;
 using Task_Tracker_Application.Domain.Entities;
@@ -12,10 +16,12 @@ namespace Task_Tracker_Application.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _userRepository;
+    private readonly JwtSettings _jwtSettings;
 
-    public UsersController(IUserRepository userRepository)
+    public UsersController(IUserRepository userRepository, IOptions<JwtSettings> jwtOptions)
     {
         _userRepository = userRepository;
+        _jwtSettings = jwtOptions.Value;
     }
 
     [HttpGet]
@@ -38,7 +44,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("login")]
-    public ActionResult<UserDto> Login([FromBody] LoginRequest request)
+    public ActionResult<AuthResponseDto> Login([FromBody] LoginRequest request)
     {
         if (!ModelState.IsValid)
         {
@@ -51,7 +57,15 @@ public class UsersController : ControllerBase
             return Unauthorized();
         }
 
-        return Ok(MapToDto(user));
+        return Ok(new AuthResponseDto
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Role = NormalizeRole(user.Role),
+            Token = GenerateJwtToken(user),
+            CreatedAt = user.CreatedAt
+        });
     }
 
     [HttpPost]
@@ -123,6 +137,31 @@ public class UsersController : ControllerBase
     };
 
     private static string NormalizeRole(string? role) => string.IsNullOrWhiteSpace(role) ? "user" : role.Trim().ToLowerInvariant();
+
+    private string GenerateJwtToken(User user)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Name),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, NormalizeRole(user.Role)),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expires = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
+
+        var token = new JwtSecurityToken(
+            issuer: _jwtSettings.Issuer,
+            audience: _jwtSettings.Audience,
+            claims: claims,
+            expires: expires,
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
     private static string HashPassword(string password) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(password)));
 

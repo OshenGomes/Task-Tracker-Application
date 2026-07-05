@@ -1,6 +1,11 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Task_Tracker_Application.Application.Dtos;
 using Task_Tracker_Application.Application.Interfaces;
 using Task_Tracker_Application.Domain.Entities;
 using Task_Tracker_Application.Infrastructure.Persistence;
@@ -34,6 +39,30 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<TaskTrackerDbContext>(options =>
     options.UseSqlite(connectionString));
 
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Key"] ?? string.Empty)),
+        ValidateIssuer = true,
+        ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration["JwtSettings:Audience"],
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddScoped<IUserRepository, SqliteUserRepository>();
 builder.Services.AddScoped<ITaskRepository, SqliteTaskRepository>();
 
@@ -48,6 +77,7 @@ app.UseSwaggerUI(c =>
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
@@ -56,12 +86,33 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<TaskTrackerDbContext>();
     db.Database.EnsureCreated();
 
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+
     try
     {
-        db.Database.ExecuteSqlRaw("ALTER TABLE \"Users\" ADD COLUMN \"PasswordHash\" TEXT NOT NULL DEFAULT ''");
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(\"Users\")";
+
+        var hasPasswordHash = false;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), "PasswordHash", StringComparison.OrdinalIgnoreCase))
+            {
+                hasPasswordHash = true;
+                break;
+            }
+        }
+
+        if (!hasPasswordHash)
+        {
+            db.Database.ExecuteSqlRaw("ALTER TABLE \"Users\" ADD COLUMN \"PasswordHash\" TEXT NOT NULL DEFAULT ''");
+        }
     }
-    catch (Exception ex) when (ex.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase))
+    finally
     {
+        connection.Close();
     }
 
     if (!db.Users.Any(u => u.Email == "admin@gmail.com"))

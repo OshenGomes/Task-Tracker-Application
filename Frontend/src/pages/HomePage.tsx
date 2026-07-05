@@ -15,6 +15,7 @@ function HomePage() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,11 +78,17 @@ function HomePage() {
   const addTask = async () => {
     if (!user || !title.trim()) return;
 
+    if (!dueDate.trim()) {
+      setError('Due date is required.');
+      return;
+    }
+
     try {
-      const createdTask = await createTask({ title: title.trim(), description: description.trim(), completed: false }, user);
+      const createdTask = await createTask({ title: title.trim(), description: description.trim(), completed: false, dueDate }, user);
       setTasks((currentTasks) => [createdTask, ...currentTasks]);
       setTitle('');
       setDescription('');
+      setDueDate('');
       setError('');
       emitTaskUpdate();
     } catch {
@@ -172,6 +179,7 @@ function HomePage() {
         <div className="task-form">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" />
           <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <button onClick={addTask}>Add Task</button>
         </div>
 

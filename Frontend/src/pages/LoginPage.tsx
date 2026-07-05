@@ -21,17 +21,6 @@ function LoginPage() {
     setSuccess('');
 
     try {
-      const storedUsers = JSON.parse(localStorage.getItem('task-tracker-users') || '[]') as Array<{ email: string; password: string; name: string; id: number; role?: string }>;
-      const localUser = storedUsers.find((item) => item.email.toLowerCase() === form.email.toLowerCase() && item.password === form.password);
-
-      if (localUser) {
-        localStorage.setItem('task-tracker-user', JSON.stringify(localUser));
-        window.dispatchEvent(new Event('auth-changed'));
-        setSuccess('Login successful. Redirecting...');
-        setTimeout(() => navigate('/'), 500);
-        return;
-      }
-
       const loginResponse = await fetch(`${API_BASE_URL}/api/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,13 +35,13 @@ function LoginPage() {
         return;
       }
 
-      const backendUser = await loginResponse.json() as { id: number; name: string; email: string; role: string };
+      const backendUser = await loginResponse.json() as { id: number; name: string; email: string; role: string; token: string };
       const authenticatedUser = {
         id: backendUser.id,
         name: backendUser.name,
         email: backendUser.email,
-        password: form.password,
-        role: backendUser.role
+        role: backendUser.role,
+        token: backendUser.token
       };
 
       localStorage.setItem('task-tracker-user', JSON.stringify(authenticatedUser));

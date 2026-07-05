@@ -61,7 +61,14 @@ button {
 .summary-box strong { display: block; font-size: 1.2rem; }
 .task-form { display: flex; gap: 8px; margin-bottom: 16px; }
 .task-form input { margin-bottom: 0; }
+.task-actions-row { margin-bottom: 16px; }
+.link-btn { display: inline-block; padding: 8px 12px; background: #eef2ff; color: #4338ca; border-radius: 10px; }
 .task-list { display: flex; flex-direction: column; gap: 10px; }
-.task-item { border: 1px solid #e5e7eb; padding: 12px; border-radius: 12px; }
+.task-item { border: 1px solid #e5e7eb; padding: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .task-item.done { background: #ecfdf5; }
-.task-item label { display: flex; gap: 10px; align-items: flex-start; }
+.task-item label { display: flex; gap: 10px; align-items: flex-start; flex: 1; }
+.inline-actions { display: flex; gap: 8px; align-items: center; }
+.task-item-actions { display: flex; gap: 8px; }
+.task-item-actions a { color: #4338ca; }
+textarea { width: 100%; padding: 12px 14px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 10px; }
+.checkbox-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }

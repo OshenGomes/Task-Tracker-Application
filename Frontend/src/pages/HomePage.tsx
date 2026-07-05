@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 type User = {
   id: number;
@@ -101,6 +101,10 @@ function HomePage() {
           <button onClick={addTask}>Add Task</button>
         </div>
 
+        <div className="task-actions-row">
+          <Link to="/tasks/new" className="link-btn">Create New Task</Link>
+        </div>
+
         <div className="task-list">
           {tasks.length === 0 ? <p>No tasks yet. Add your first one.</p> : tasks.map((task) => (
             <div className={`task-item ${task.completed ? 'done' : ''}`} key={task.id}>
@@ -111,6 +115,10 @@ function HomePage() {
                   <p>{task.description}</p>
                 </div>
               </label>
+              <div className="task-item-actions">
+                <Link to={`/task/${task.id}`}>View</Link>
+                <Link to={`/task/${task.id}/edit`}>Edit</Link>
+              </div>
             </div>
           ))}
         </div>

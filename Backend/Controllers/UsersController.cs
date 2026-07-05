@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Task_Tracker_Application.Application.Dtos;
 using Task_Tracker_Application.Application.Interfaces;
@@ -35,6 +37,23 @@ public class UsersController : ControllerBase
         return Ok(MapToDto(user));
     }
 
+    [HttpPost("login")]
+    public ActionResult<UserDto> Login([FromBody] LoginRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var user = _userRepository.GetAll().FirstOrDefault(u => u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase));
+        if (user is null || !VerifyPassword(request.Password, user.PasswordHash))
+        {
+            return Unauthorized();
+        }
+
+        return Ok(MapToDto(user));
+    }
+
     [HttpPost]
     public ActionResult<UserDto> Create([FromBody] CreateUserRequest request)
     {
@@ -47,6 +66,7 @@ public class UsersController : ControllerBase
         {
             Name = request.Name,
             Email = request.Email,
+            PasswordHash = HashPassword(request.Password),
             Role = NormalizeRole(request.Role),
             CreatedAt = DateTime.UtcNow
         };
@@ -71,6 +91,10 @@ public class UsersController : ControllerBase
 
         user.Name = request.Name;
         user.Email = request.Email;
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            user.PasswordHash = HashPassword(request.Password);
+        }
         user.Role = NormalizeRole(request.Role);
         _userRepository.Update(user);
         return NoContent();
@@ -99,4 +123,9 @@ public class UsersController : ControllerBase
     };
 
     private static string NormalizeRole(string? role) => string.IsNullOrWhiteSpace(role) ? "user" : role.Trim().ToLowerInvariant();
+
+    private static string HashPassword(string password) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(password)));
+
+    private static bool VerifyPassword(string password, string passwordHash) =>
+        string.Equals(HashPassword(password), passwordHash, StringComparison.OrdinalIgnoreCase);
 }

@@ -12,6 +12,9 @@ public class UpdateUserRequest
     [EmailAddress(ErrorMessage = "A valid email address is required")]
     public string Email { get; set; } = string.Empty;
 
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be between 6 and 100 characters")]
+    public string? Password { get; set; }
+
     [Required(ErrorMessage = "Role is required")]
     [RegularExpression("^(user|admin)$", ErrorMessage = "Role must be either 'user' or 'admin'")]
     public string Role { get; set; } = "user";

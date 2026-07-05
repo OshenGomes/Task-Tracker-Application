@@ -40,7 +40,7 @@ public class TasksController : ControllerBase
         {
             if (!currentUserId.HasValue)
             {
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden);
             }
 
             query = query.Where(t => t.AssignedToUserId == currentUserId.Value);
@@ -67,7 +67,7 @@ public class TasksController : ControllerBase
             {
                 if (!currentUserId.HasValue || owner.Value != currentUserId.Value)
                 {
-                    return Forbid();
+                    return StatusCode(StatusCodes.Status403Forbidden);
                 }
             }
 
@@ -104,7 +104,7 @@ public class TasksController : ControllerBase
 
         if (!isAdmin && (!currentUserId.HasValue || task.AssignedToUserId != currentUserId.Value))
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         return Ok(MapToDto(task));
@@ -123,12 +123,12 @@ public class TasksController : ControllerBase
         {
             if (!currentUserId.HasValue)
             {
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden);
             }
 
             if (request.AssignedToUserId.HasValue && request.AssignedToUserId != currentUserId.Value)
             {
-                return Forbid();
+                return StatusCode(StatusCodes.Status403Forbidden);
             }
         }
 
@@ -166,12 +166,12 @@ public class TasksController : ControllerBase
 
         if (!isAdmin && (!currentUserId.HasValue || task.AssignedToUserId != currentUserId.Value))
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         if (!isAdmin && request.AssignedToUserId.HasValue && request.AssignedToUserId != currentUserId.Value)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         var assignedUserId = isAdmin ? request.AssignedToUserId : currentUserId;
@@ -201,7 +201,7 @@ public class TasksController : ControllerBase
 
         if (!isAdmin && (!currentUserId.HasValue || task.AssignedToUserId != currentUserId.Value))
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         _taskRepository.Delete(task);

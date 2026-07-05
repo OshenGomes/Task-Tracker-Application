@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Task_Tracker_Application.Data;
-using Task_Tracker_Application.Models;
+using Task_Tracker_Application.Application.Dtos;
+using Task_Tracker_Application.Application.Interfaces;
+using Task_Tracker_Application.Domain.Entities;
 
 namespace Task_Tracker_Application.Controllers;
 
@@ -8,25 +9,103 @@ namespace Task_Tracker_Application.Controllers;
 [Route("api/[controller]")]
 public class TasksController : ControllerBase
 {
-    private static readonly TaskTrackerDbContext _dbContext = new();
+    private readonly ITaskRepository _taskRepository;
+
+    public TasksController(ITaskRepository taskRepository)
+    {
+        _taskRepository = taskRepository;
+    }
 
     [HttpGet]
-    public ActionResult<IEnumerable<TaskItem>> GetAll() => Ok(_dbContext.Tasks);
+    public ActionResult<IEnumerable<TaskDto>> GetAll()
+    {
+        var tasks = _taskRepository.GetAll().Select(MapToDto);
+        return Ok(tasks);
+    }
 
     [HttpGet("{id:int}")]
-    public ActionResult<TaskItem> GetById(int id)
+    public ActionResult<TaskDto> GetById(int id)
     {
-        var task = _dbContext.Tasks.FirstOrDefault(t => t.Id == id);
-        return task is null ? NotFound() : Ok(task);
+        var task = _taskRepository.GetById(id);
+        return task is null ? NotFound() : Ok(MapToDto(task));
     }
 
     [HttpPost]
-    public ActionResult<TaskItem> Create(TaskItem task)
+    public ActionResult<TaskDto> Create([FromBody] CreateTaskRequest request)
     {
-        task.Id = _dbContext.Tasks.Count + 1;
-        task.CreatedAt = DateTime.UtcNow;
-        task.UpdatedAt = DateTime.UtcNow;
-        _dbContext.Tasks.Add(task);
-        return CreatedAtAction(nameof(GetById), new { id = task.Id }, task);
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var task = new TaskItem
+        {
+            Title = request.Title,
+            Description = request.Description,
+            Status = Enum.TryParse<Domain.Entities.TaskStatus>(request.Status, true, out var status) ? status : Domain.Entities.TaskStatus.ToDo,
+            Priority = Enum.TryParse<Domain.Entities.TaskPriority>(request.Priority, true, out var priority) ? priority : Domain.Entities.TaskPriority.Medium,
+            DueDate = request.DueDate,
+            AssignedToUserId = request.AssignedToUserId,
+            Tags = request.Tags,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var createdTask = _taskRepository.Create(task);
+        return CreatedAtAction(nameof(GetById), new { id = createdTask.Id }, MapToDto(createdTask));
     }
+
+    [HttpPut("{id:int}")]
+    public IActionResult Update(int id, [FromBody] CreateTaskRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var task = _taskRepository.GetById(id);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        task.Title = request.Title;
+        task.Description = request.Description;
+        task.Status = Enum.TryParse<Domain.Entities.TaskStatus>(request.Status, true, out var status) ? status : Domain.Entities.TaskStatus.ToDo;
+        task.Priority = Enum.TryParse<Domain.Entities.TaskPriority>(request.Priority, true, out var priority) ? priority : Domain.Entities.TaskPriority.Medium;
+        task.DueDate = request.DueDate;
+        task.AssignedToUserId = request.AssignedToUserId;
+        task.Tags = request.Tags;
+        task.UpdatedAt = DateTime.UtcNow;
+
+        _taskRepository.Update(task);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}")]
+    public IActionResult Delete(int id)
+    {
+        var task = _taskRepository.GetById(id);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        _taskRepository.Delete(task);
+        return NoContent();
+    }
+
+    private static TaskDto MapToDto(TaskItem task) => new()
+    {
+        Id = task.Id,
+        Title = task.Title,
+        Description = task.Description,
+        Status = task.Status.ToString(),
+        Priority = task.Priority.ToString(),
+        DueDate = task.DueDate,
+        CreatedAt = task.CreatedAt,
+        UpdatedAt = task.UpdatedAt,
+        AssignedToUserId = task.AssignedToUserId,
+        Tags = task.Tags
+    };
 }

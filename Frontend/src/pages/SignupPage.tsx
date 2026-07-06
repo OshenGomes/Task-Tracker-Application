@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+const API_BASE_URL = 'http://localhost:5074';
+
 type SignupForm = {
   name: string;
   email: string;
@@ -14,7 +16,7 @@ function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -24,21 +26,57 @@ function SignupPage() {
       return;
     }
 
-    const storedUsers = JSON.parse(localStorage.getItem('task-tracker-users') || '[]') as Array<{ email: string; password: string; name: string; id: number }>;
-    const existing = storedUsers.find((user) => user.email.toLowerCase() === form.email.toLowerCase());
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          role: 'user'
+        })
+      });
 
-    if (existing) {
-      setError('An account with this email already exists.');
-      return;
+      if (!response.ok) {
+        const message = await response.text();
+        setError(message || 'Unable to create account.');
+        return;
+      }
+
+      await response.json();
+
+      const loginResponse = await fetch(`${API_BASE_URL}/api/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password
+        })
+      });
+
+      if (!loginResponse.ok) {
+        const message = await loginResponse.text();
+        setError(message || 'Account created, but login failed. Please sign in.');
+        return;
+      }
+
+      const backendUser = await loginResponse.json() as { id: number; name: string; email: string; role: string; token: string };
+      const authenticatedUser = {
+        id: backendUser.id,
+        name: backendUser.name,
+        email: backendUser.email,
+        role: backendUser.role,
+        token: backendUser.token
+      };
+
+      localStorage.setItem('task-tracker-user', JSON.stringify(authenticatedUser));
+      window.dispatchEvent(new Event('auth-changed'));
+      setSuccess('Account created and logged in successfully. Redirecting...');
+      setTimeout(() => navigate('/'), 500);
+    } catch {
+      setError('Unable to create account right now.');
     }
-
-    const newUser = { id: Date.now(), name: form.name.trim(), email: form.email.trim(), password: form.password };
-    const updatedUsers = [...storedUsers, newUser];
-    localStorage.setItem('task-tracker-users', JSON.stringify(updatedUsers));
-    localStorage.setItem('task-tracker-user', JSON.stringify(newUser));
-    window.dispatchEvent(new Event('auth-changed'));
-    setSuccess('Account created successfully. Redirecting...');
-    setTimeout(() => navigate('/'), 500);
   };
 
   return (

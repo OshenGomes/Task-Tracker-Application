@@ -5,21 +5,27 @@ import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import TaskDetailsPage from './pages/TaskDetailsPage';
 import TaskFormPage from './pages/TaskFormPage';
-
-const getStoredUser = () => {
-  const user = localStorage.getItem('task-tracker-user');
-  try {
-    return user ? JSON.parse(user) : null;
-  } catch {
-    return null;
-  }
-};
+import type { User } from './api/taskApi';
 
 function App() {
-  const [user, setUser] = useState(getStoredUser);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const syncUser = () => setUser(getStoredUser());
+    const syncUser = () => {
+      const storedUser = localStorage.getItem('task-tracker-user');
+      if (!storedUser) {
+        setUser(null);
+        return;
+      }
+
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
+    };
+
+    syncUser();
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === 'task-tracker-user') {

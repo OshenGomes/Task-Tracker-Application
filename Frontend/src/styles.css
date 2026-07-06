@@ -50,6 +50,14 @@ button {
   cursor: pointer;
 }
 
+.text-button {
+  width: auto;
+  padding: 0;
+  background: transparent;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .error { color: #b91c1c; margin-bottom: 12px; }
 .success { color: #047857; margin-bottom: 12px; }
 

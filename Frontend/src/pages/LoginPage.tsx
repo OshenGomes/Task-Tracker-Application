@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+const API_BASE_URL = 'http://localhost:5074';
+
 type LoginForm = {
   email: string;
   password: string;
@@ -13,23 +15,42 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    const storedUsers = JSON.parse(localStorage.getItem('task-tracker-users') || '[]') as Array<{ email: string; password: string; name: string; id: number }>;
-    const user = storedUsers.find((item) => item.email.toLowerCase() === form.email.toLowerCase() && item.password === form.password);
+    try {
+      const loginResponse = await fetch(`${API_BASE_URL}/api/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password
+        })
+      });
 
-    if (!user) {
-      setError('Invalid email or password.');
-      return;
+      if (!loginResponse.ok) {
+        setError('Invalid email or password.');
+        return;
+      }
+
+      const backendUser = await loginResponse.json() as { id: number; name: string; email: string; role: string; token: string };
+      const authenticatedUser = {
+        id: backendUser.id,
+        name: backendUser.name,
+        email: backendUser.email,
+        role: backendUser.role,
+        token: backendUser.token
+      };
+
+      localStorage.setItem('task-tracker-user', JSON.stringify(authenticatedUser));
+      window.dispatchEvent(new Event('auth-changed'));
+      setSuccess('Login successful. Redirecting...');
+      setTimeout(() => navigate('/'), 500);
+    } catch {
+      setError('Unable to sign in right now.');
     }
-
-    localStorage.setItem('task-tracker-user', JSON.stringify(user));
-    window.dispatchEvent(new Event('auth-changed'));
-    setSuccess('Login successful. Redirecting...');
-    setTimeout(() => navigate('/'), 500);
   };
 
   return (

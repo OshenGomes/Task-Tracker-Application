@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteTask, getTaskById, type TaskItem } from '../api/taskApi';
 
@@ -8,7 +8,7 @@ function TaskDetailsPage() {
   const [task, setTask] = useState<TaskItem | null>(null);
   const [error, setError] = useState('');
 
-  const loadTask = async () => {
+  const loadTask = useCallback(async () => {
     const storedUser = localStorage.getItem('task-tracker-user');
     if (!storedUser) {
       navigate('/login');
@@ -19,10 +19,14 @@ function TaskDetailsPage() {
     const foundTask = await getTaskById(Number(id), user);
     setTask(foundTask);
     setError('');
-  };
+  }, [id, navigate]);
 
   useEffect(() => {
-    loadTask();
+    const initTask = () => {
+      void loadTask();
+    };
+
+    initTask();
 
     const handleStorageUpdate = (event: StorageEvent) => {
       if (event.key === 'task-tracker-tasks' || event.key === 'task-tracker-user') {
@@ -41,7 +45,7 @@ function TaskDetailsPage() {
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('task-tracker-updated', handleTaskUpdate);
     };
-  }, [id, navigate]);
+  }, [id, loadTask, navigate]);
 
   const handleDeleteTask = async () => {
     const storedUser = localStorage.getItem('task-tracker-user');

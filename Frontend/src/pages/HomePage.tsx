@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createTask, deleteTask, listTasks, updateTask, type TaskItem } from '../api/taskApi';
 
@@ -22,7 +22,7 @@ function HomePage() {
   const [error, setError] = useState('');
   const pageSize = 5;
 
-  const loadTasksForUser = async (activeUser: User | null) => {
+  const loadTasksForUser = useCallback(async (activeUser: User | null) => {
     if (!activeUser) {
       setTasks([]);
       return;
@@ -35,7 +35,7 @@ function HomePage() {
     } catch {
       setError('Unable to load tasks from the server.');
     }
-  };
+  }, []);
 
   const emitTaskUpdate = () => {
     window.dispatchEvent(new Event('task-tracker-updated'));
@@ -49,8 +49,14 @@ function HomePage() {
     }
 
     const parsedUser = JSON.parse(storedUser) as User;
-    setUser(parsedUser);
-    void loadTasksForUser(parsedUser);
+    const syncUserState = () => {
+      window.setTimeout(() => {
+        setUser(parsedUser);
+      }, 0);
+      void loadTasksForUser(parsedUser);
+    };
+
+    syncUserState();
 
     const handleStorageUpdate = (event: StorageEvent) => {
       if (event.key === 'task-tracker-tasks' || event.key === 'task-tracker-user') {
@@ -69,10 +75,14 @@ function HomePage() {
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('task-tracker-updated', handleTaskUpdate);
     };
-  }, [navigate]);
+  }, [loadTasksForUser, navigate]);
 
   useEffect(() => {
-    setCurrentPage(1);
+    const timer = window.setTimeout(() => {
+      setCurrentPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [filterStatus, searchTerm]);
 
   const addTask = async () => {
